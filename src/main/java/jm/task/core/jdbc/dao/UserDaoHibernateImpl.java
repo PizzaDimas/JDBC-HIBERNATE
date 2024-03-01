@@ -2,27 +2,25 @@ package jm.task.core.jdbc.dao;
 
 import jm.task.core.jdbc.model.User;
 import jm.task.core.jdbc.util.Util;
+import org.hibernate.HibernateException;
 import org.hibernate.Session;
-import org.hibernate.Transaction;
-import org.hibernate.query.NativeQuery;
-
-import javax.persistence.Query;
-import java.util.ArrayList;
+import org.hibernate.SessionFactory;
+import org.hibernate.query.Query;
 import java.util.List;
 
 public class UserDaoHibernateImpl implements UserDao {
+    static final SessionFactory sessionFactory = Util.getSessionFactory();
     public UserDaoHibernateImpl() {
 
     }
 
-
     @Override
     public void createUsersTable() {
         String SQL = "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR(255), lastname VARCHAR(255), age SMALLINT)";
-        try (Session session = Util.getHibernateConnection().openSession()) {
-            Transaction transaction = session.beginTransaction();
+        try (Session session = sessionFactory.openSession()) {
+            session.beginTransaction();
             session.createNativeQuery(SQL).executeUpdate();
-            transaction.commit();
+            session.getTransaction().commit();
             System.out.println("Таблица создана");
         } catch (Exception e) {
             throw new RuntimeException("Ошибка при создании таблицы с Hibernate: " + e.getMessage());
@@ -32,10 +30,10 @@ public class UserDaoHibernateImpl implements UserDao {
     @Override
     public void dropUsersTable() {
         String SQL = "DROP TABLE IF EXISTS users";
-        try (Session session = Util.getHibernateConnection().openSession()) {
-            Transaction transaction = session.beginTransaction();
+        try (Session session = sessionFactory.openSession()) {
+            session.beginTransaction();
             session.createNativeQuery(SQL).executeUpdate();
-            transaction.commit();
+            session.getTransaction().commit();
             System.out.println("Таблица удалена");
         } catch (Exception e) {
             throw new RuntimeException("Ошибка при удалении таблицы c Hibernate: " + e.getMessage());
@@ -44,15 +42,11 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public void saveUser(String name, String lastName, byte age) {
-        String SQL = "INSERT INTO users (name, lastname, age) VALUES (?,?,?)";
-        try (Session session = Util.getHibernateConnection().openSession()) {
-            Transaction transaction = session.beginTransaction();
-            NativeQuery query = session.createNativeQuery(SQL);
-            query.setParameter(1, name);
-            query.setParameter(2, lastName);
-            query.setParameter(3,age);
-            query.executeUpdate();
-            transaction.commit();
+        try (Session session = sessionFactory.openSession()) {
+            User user = new User(name, lastName, age);
+            session.beginTransaction();
+            session.persist(user);
+            session.getTransaction().commit();
             System.out.println("user с именем " + name + " добавлен в базу данных.");
         } catch (Exception e) {
             throw new RuntimeException("Ошибка при добавлении " + name + " c Hibernate: " + e.getMessage());
@@ -61,13 +55,11 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public void removeUserById(long id) {
-        String SQL = "DELETE FROM users WHERE id = ?";
-        try (Session session = Util.getHibernateConnection().openSession()) {
-            Transaction transaction = session.beginTransaction();
-            NativeQuery query = session.createNativeQuery(SQL);
-            query.setParameter(1, id);
-            query.executeUpdate();
-            transaction.commit();
+        try (Session session = sessionFactory.openSession()) {
+            session.beginTransaction();
+            User user = session.getReference(User.class, id);
+            session.remove(user);
+            session.getTransaction().commit();
         } catch (Exception e) {
             throw new RuntimeException("Ошибка при удалении c Hibernate: " + e.getMessage());
         }
@@ -75,21 +67,9 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public List<User> getAllUsers() {
-        String SQL = "SELECT * FROM users";
-        try (Session session = Util.getHibernateConnection().openSession()) {
-            Transaction transaction = session.beginTransaction();
-            List<Object[]> rows = session.createNativeQuery(SQL).list();
-            List<User> userList = new ArrayList<>();
-            for (Object[] row : rows) {
-                User user = new User();
-                user.setId(Long.valueOf((Integer) row[0]));
-                user.setName((String) row[1]);
-                user.setLastName((String) row[2]);
-                user.setAge(((Short) row[3]).byteValue());
-                userList.add(user);
-            }
-            transaction.commit();
-            return userList;
+        try (Session session = sessionFactory.openSession()) {
+            Query<User> query = session.createQuery("SELECT u from User u", User.class);
+            return query.list();
         } catch (Exception e) {
             throw new RuntimeException("Ошибка при возвращении списка users c Hibernate: " + e.getMessage());
         }
@@ -97,12 +77,12 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public void cleanUsersTable() {
-        String SQL = "DELETE FROM users";
-        try (Session session = Util.getHibernateConnection().openSession()) {
-            Transaction transaction = session.beginTransaction();
-            session.createNativeQuery(SQL).executeUpdate();
-            transaction.commit();
-        } catch (Exception e) {
+        try (Session session = sessionFactory.openSession()) {
+            session.beginTransaction();
+            Query<User> query = session.createQuery("DELETE FROM User");
+            query.executeUpdate();
+            session.getTransaction().commit();
+        } catch (HibernateException e) {
             throw new RuntimeException("Ошибка при очищении таблицы с Hibernate: " + e.getMessage());
         }
     }

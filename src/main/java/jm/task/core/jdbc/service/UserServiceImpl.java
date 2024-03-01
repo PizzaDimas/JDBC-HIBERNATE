@@ -8,27 +8,22 @@ import java.util.List;
 
 public class UserServiceImpl implements UserService {
 
-//    private UserDaoJDBCImpl userDao;
-    private UserDaoHibernateImpl userDao;
+//    private static final UserDaoJDBCImpl userDao = new UserDaoJDBCImpl();
+    private static final UserDaoHibernateImpl userDao = new UserDaoHibernateImpl();
 
     public UserServiceImpl() {
-//        this.userDao = new UserDaoJDBCImpl();
-        this.userDao = new UserDaoHibernateImpl();
     }
 
     public void createUsersTable() {
         userDao.createUsersTable();
-
     }
 
     public void dropUsersTable() {
         userDao.dropUsersTable();
-
     }
 
     public void saveUser(String name, String lastName, byte age) {
         userDao.saveUser(name, lastName, age);
-
     }
 
     public void removeUserById(long id) {
